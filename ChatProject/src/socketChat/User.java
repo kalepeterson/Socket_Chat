@@ -33,4 +33,9 @@ public class User {
     public void setUniqueID(int id) {
         this.uniqueID = id;
     }
+
+    @Override
+    public String toString() {
+        return this.pmKey;
+    }
 }

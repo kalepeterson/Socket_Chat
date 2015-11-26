@@ -70,13 +70,16 @@ public class ConnectionsManager {
                 sockOuts[0] = new ObjectOutputStream(socks[0].getOutputStream());
                 //The client then responds with the password.
                 //NOTE: The client must be the first to write!
+                System.out.println("Reading password.");
                 String rsp = (String) sockIns[0].readObject(); //pw
                 //Check the password
                 if(rsp.equals(PW)) {
                     //Send the new port number to the client
+                    System.out.println("Password correct! Sending new port");
                     sockOuts[0].writeInt(port);
                 } else {
                     //Wrong password, send -1 so the client can be notified
+                    System.out.println("PASSWORD INCORRECT");
                     sockOuts[0].writeInt(-1);
                     //Close the default port
                     closeDefaults();
@@ -88,18 +91,22 @@ public class ConnectionsManager {
                 closeDefaults();
                 ss.close();
                 //Shift to the new port number and listen
+                System.out.println("Waiting for connection on " + port);
                 ss = new ServerSocket(port);
                 socks[numConnections+1] = ss.accept();
+                System.out.println("Connection made!");
                 //Connected, no need for the ServerSocket now.
                 ss.close();
                 //Make the input/output streams.
                 sockIns[numConnections+1] = new ObjectInputStream(socks[numConnections+1].getInputStream());
                 sockOuts[numConnections+1] = new ObjectOutputStream(socks[numConnections+1].getOutputStream());
                 //The client will now send the User object created on their side.
+                System.out.println("Reading user");
                 User ursp = (User) sockIns[numConnections+1].readObject();
                 //Set the User's unique ID and send it back to the client.
                 //NOTE: If we have time, make this more complicated.
                 ursp.setUniqueID(numConnections+1);
+                System.out.println("Sending new user id");
                 sockOuts[numConnections+1].writeObject(numConnections + 1);
                 System.out.printf("Socket #%d successfully connected!\nMessage: %s\n",++numConnections,ursp);
                 //Return the user to the server application

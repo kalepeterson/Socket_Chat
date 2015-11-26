@@ -26,11 +26,11 @@ public class Session {
         this.password = SharedLibrary.DEFAULT_PASSWORD;
         this.startPort = startPort;
         this.endPort = startPort + SharedLibrary.MAX_CONNECTIONS;
-        int[] temp = new int[SharedLibrary.MAX_CONNECTIONS];
+        /*int[] temp = new int[SharedLibrary.MAX_CONNECTIONS];
         int i = 0;
         for(int port = startPort; port <= endPort; port++) {
             temp[i++] = port;
-        }
+        }*/
         users = new User[SharedLibrary.MAX_CONNECTIONS];
         conMan = new ConnectionsManager();
         //threading stuff
