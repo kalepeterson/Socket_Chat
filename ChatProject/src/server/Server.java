@@ -12,8 +12,12 @@ public class Server {
         sessions[0] = new Session("localhost",55601); //default session
         ConnectionsManager cm = new ConnectionsManager();
         try {
-            cm.addConnection(SharedLibrary.DEFAULT_PORT + 100);
-            cm.broadcast("Hey you!");
+            int conns = 0;
+            while(conns < SharedLibrary.MAX_CONNECTIONS) {
+                cm.addConnection(SharedLibrary.DEFAULT_PORT + 100 + conns);
+                System.out.printf("Connection %d is connected.", conns + 1);
+                conns++;
+            }
         } catch(Exception e) {
             System.out.println(e);
         }

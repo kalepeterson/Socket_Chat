@@ -1,9 +1,11 @@
 package socketChat;
 
+import java.io.Serializable;
+
 /**
  * Created by Kale on 11/15/2015.
  */
-public class User {
+public class User implements Serializable{
     private String userName; //name that appears in chat
     private int uniqueID; //the id number for this user
     private String pmKey; //the character sequence for sending a private message to this user.

@@ -3,6 +3,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.*;
+
+import socketChat.Message;
 import socketChat.SharedLibrary;
 import socketChat.User;
 
@@ -20,6 +22,7 @@ public class ConnectionsManager {
     private Socket[] socks; //the actual socket connections
     private ObjectInputStream[] sockIns; //for reading from a specified socket
     private ObjectOutputStream[] sockOuts; //for sending information to a specified socket
+    private ClientListener[] cl;
 
     //private fields
     private byte numConnections; //The number of current connections
@@ -33,6 +36,7 @@ public class ConnectionsManager {
         socks = new Socket[MAX_CONNS+1];
         sockIns = new ObjectInputStream[MAX_CONNS+1];
         sockOuts = new ObjectOutputStream[MAX_CONNS+1];
+        cl = new ClientListener[MAX_CONNS+1];
         numConnections = 0;
     }
 
@@ -66,10 +70,10 @@ public class ConnectionsManager {
                 ServerSocket ss = new ServerSocket(DEFAULT_PORT);
                 System.out.printf("Waiting for connection #%d on port %d\n",numConnections+1, port);
                 socks[0] = ss.accept();
-                sockIns[0] = new ObjectInputStream(socks[0].getInputStream());
+                System.out.println("Accepted.");
                 sockOuts[0] = new ObjectOutputStream(socks[0].getOutputStream());
+                sockIns[0] = new ObjectInputStream(socks[0].getInputStream());
                 //The client then responds with the password.
-                //NOTE: The client must be the first to write!
                 System.out.println("Reading password.");
                 String rsp = (String) sockIns[0].readObject(); //pw
                 //Check the password
@@ -98,18 +102,27 @@ public class ConnectionsManager {
                 //Connected, no need for the ServerSocket now.
                 ss.close();
                 //Make the input/output streams.
-                sockIns[numConnections+1] = new ObjectInputStream(socks[numConnections+1].getInputStream());
                 sockOuts[numConnections+1] = new ObjectOutputStream(socks[numConnections+1].getOutputStream());
+                sockIns[numConnections+1] = new ObjectInputStream(socks[numConnections+1].getInputStream());
                 //The client will now send the User object created on their side.
                 System.out.println("Reading user");
                 User ursp = (User) sockIns[numConnections+1].readObject();
                 //Set the User's unique ID and send it back to the client.
                 //NOTE: If we have time, make this more complicated.
                 ursp.setUniqueID(numConnections+1);
-                System.out.println("Sending new user id");
-                sockOuts[numConnections+1].writeObject(numConnections + 1);
-                System.out.printf("Socket #%d successfully connected!\nMessage: %s\n",++numConnections,ursp);
+                //System.out.println("Sending new user id");
+                //sockOuts[numConnections+1].writeInt(numConnections + 1);
+                System.out.println("Sent.  Waiting for ready message");
+                Message msg = (Message)waitForResponse(numConnections + 1);
                 //Return the user to the server application
+                cl[numConnections+1] = new ClientListener(
+                        socks[numConnections+1],
+                        sockIns[numConnections+1],
+                        sockOuts[numConnections+1]
+                );
+                Thread clientThread = new Thread(cl[numConnections+1]);
+                clientThread.start();
+                System.out.printf("Socket #%d successfully connected!\nMessage: %s\n",++numConnections,ursp);
                 return ursp;
             } catch(Exception e) {
                 System.out.println("An error occurred while opening socket.");
@@ -248,11 +261,11 @@ public class ConnectionsManager {
      * @param message The message to be sent.
      */
     public void broadcast(Object message) {
-        for(ObjectOutputStream oos : sockOuts) {
-            if(oos != null) {
+        for(int i = 1; i <= numConnections; i++) {
+            if(sockOuts[i] != null) {
                 try {
-                    oos.writeObject(message);
-                    oos.reset();
+                    sockOuts[i].writeObject(message);
+                    //sockOuts[i].reset();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
