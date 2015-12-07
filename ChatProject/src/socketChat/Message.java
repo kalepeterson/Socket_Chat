@@ -40,7 +40,7 @@ public class Message implements Serializable{
 	
 	public String toString() {
 		String string = "";
-		string += message + "\n";
+		string += "From: " + sender + " To: " + receiver + " Message: " + message + "\n";
 		return string;
 	}
 }

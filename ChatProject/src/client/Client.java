@@ -1,116 +1,240 @@
 package client;
 
-import socketChat.Message;
-import socketChat.User;
-
-import java.util.LinkedList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.regex.Pattern;
 
-/**
- * Created by Kale on 11/15/2015.
- */
+import socketChat.Message;
+import socketChat.User;
+
 public class Client {
-    public static void main(String[] args) {
-        System.out.println("I'm a client!");
-        //below should probably be put into a method but I wanted to scrap it out first.
-        System.out.println("Please enter an IPv4 address of the Socket_Chat server:");
-        boolean valid = false;
-        Scanner stdin = new Scanner(System.in);
-        String input;
-        Connection conn = new Connection();
-        byte[] ipOctets = new byte[4];
-        String[] octets;
-        User me = null;
-        while (!valid) {
-            System.out.println("Format: ###.###.###.###");
-            input = stdin.next(); //next because the entire input should be one token
-            try {
-                if (!input.contains(".")) {
-                    System.out.println("Input must contain a period (.)! Try again:");
-                    continue;
-                }
-                octets = input.split(Pattern.quote(".")); //breaks input into String array where . is found
-                if (octets.length != 4) {
-                    System.out.println("Invalid number of octets! Try again:");
-                    continue;
-                }
-                for (int i = 0; i < 4; i++) {
-                    ipOctets[i] = (byte) (Integer.parseUnsignedInt(octets[i]));
-                }
-                valid = true;
-                System.out.println("Valid ip, attempting connection.");
-                me = conn.connect(ipOctets);
-            } catch (Exception e) {
-                System.out.println(e);
-                System.out.println("Try again:");
-                me = null;
-            }
-        }
-        if(me == null) {
-            System.out.println("User is null.  Exiting.");
-            System.exit(0);
-        }
-        System.out.println("Connection successful from Client!");
-        //Sam's client
-        int choice = 0;
-        int unreadSaved = 0;
-        int totalSaved = 0;
-        int recMessCounter = 0;
-        int totalRecMess = 0;
-        int saveYN = 0;
-        String message;
-        String destination;
-        String clientID = me.getUserName();
-        LinkedList<Message> recMessage = new LinkedList<Message>();
-        LinkedList<Message> savedMessages = new LinkedList<Message>();
-        do
-        {
-            System.out.printf("Choose an option\n 1: Send a message\n 2: Look at messages\n 3: Exit");
+	/**
+	 * Attempts to connect to a server based on user-provided server
+	 * information.
+	 * 
+	 * @param input
+	 *            - Scanner object for input.
+	 * @return User - Returns a connected client, or null if connection failed.
+	 */
+	public static User connect(Scanner input, String userName) {
+		User client = null;
+		Connection conn = new Connection();
+		String[] octets;
+		String inputString;
+		boolean invalid = true;
+		byte[] ipOctets = new byte[4];
 
-            choice = stdin.nextInt();
-            switch(choice)
-            {
-                case 1:
-                    System.out.printf("Enter the client ID for the recipient.");
-                    destination = stdin.nextLine();
-                    System.out.printf("Enter message to be sent.\n");
-                    message = stdin.nextLine();
-                    Message m = new Message(message, destination, me.getUserName());
-                    recMessage.add(m);
-                    conn.sendMessage(m);
-                    break;
-                case 2:
-                    System.out.printf("You have %d unread messages and %d saved messages",totalRecMess,totalSaved);
-                    do
-                    {
-                        System.out.printf("Would you like to look at unread or saved messages?\n 1: unread\n 2: Saved\n");
-                        unreadSaved = stdin.nextInt();
-                    }
-                    while((unreadSaved !=1)||(unreadSaved !=2));
-                    if(unreadSaved == 1)
-                    {
-                        System.out.printf("What message would you like to look at?");
-                        unreadSaved = stdin.nextInt();
-                        //parse and print message?
-                        System.out.printf("%s\n",recMessage.get(unreadSaved));
-                        System.out.printf("Would you like to save the Message\n 1: Yes\n 2:No");
-                        saveYN = stdin.nextInt();
-                        if(saveYN == 1)
-                        {
-                            savedMessages.add(recMessage.get(unreadSaved));
-                        }
-                        recMessage.remove(unreadSaved);
-                    }
-                    else
-                    {
-                        System.out.printf("What message would you like to look at?");
-                        unreadSaved = stdin.nextInt();
-                    }
-                    break;
-            }
+		System.out
+				.println("Please enter an IPv4 address of the Socket_Chat server:");
+		do {
+			System.out.println("Format: ###.###.###.###");
+			inputString = input.next(); // next because the entire input should
+										// be one token
+			try {
+				if (!inputString.contains(".")) {
+					System.out
+							.println("ERROR: Input must contain a period (.)! Try again:");
+					continue;
+				}
+				octets = inputString.split(Pattern.quote(".")); // breaks input
+																// into String
+																// array where .
+																// is found
+				if (octets.length != 4) {
+					System.out
+							.println("ERROR: Invalid number of octets. Try again:");
+					continue;
+				}
+				for (int i = 0; i < 4; i++) {
+					ipOctets[i] = (byte) (Integer.parseInt(octets[i]));
+				}
+				invalid = false;
+				System.out.println("Valid IP, attempting connection.");
+				client = conn.connect(ipOctets, userName);
+				client.setConnection(conn);
+			} catch (Exception e) {
+				System.out.println("ERROR: Connection failed.");
+				// Clear input
+				input.nextLine();
+				client = null;
+			}
+		} while (invalid);
 
-        }while(choice!=3);
-        conn.close();
-    }
+		// Return results
+		return client;
+	}
+
+	public static String getClientName(Scanner input) {
+		String clientName = "";
+		// Get client name
+		while (clientName.equals("")) {
+			System.out.print("Please enter your name: ");
+			clientName = input.nextLine();
+			if (!clientName.equals("")) {
+				System.out
+						.println("Welcome to the Instant Messaging Application, "
+								+ clientName + ".");
+			}
+		}
+		return clientName;
+	}
+
+	/**
+	 * Runs the client menu.
+	 * 
+	 * @param input
+	 *            - Scanner object for user input.
+	 */
+	public static void runMenu(Scanner input) {
+		int inputSelection = 0;
+		String message = "";
+		String destination = "";
+		String clientName = "";
+		User client = null;
+		boolean shouldContinue = true;
+
+		do {
+			// Get the client's name
+			if (clientName.equals("")) {
+				clientName = getClientName(input);
+			}
+
+			// Run menu
+			switch (inputSelection) {
+			case 0:
+				// Display menu
+				displayMenu();
+
+				// Get user selection (handle invalid inputs)
+				try {
+					inputSelection = Integer.parseInt(input.nextLine());
+				} catch (NumberFormatException ex) {
+					inputSelection = 0;
+					System.out
+							.println("ERROR: Invalid selection. Please select a valid option.");
+				}
+				break;
+			case 1:
+				// Attempt to connect
+				if (client == null) {
+					client = connect(input, clientName);
+				} else {
+					System.out.println("You are already connected!");
+				}
+				inputSelection = 0;
+				break;
+			case 2:
+				// View
+				if (client != null) {
+					do {
+
+						// Tell server to send conversations
+						client.getConnection().tellServer(clientName);
+
+						// Get most recent version of conversations from server
+						List<Conversation> cList = client.getConnection().listenToServer();
+						if (cList != null) {
+							System.out.println(cList.size() + " conversations");
+							client.conversations = cList;
+						}
+
+						// Display submenu options
+						if (client.conversations.size() == 0) {
+							System.out.println("No conversations to view.");
+							shouldContinue = false;
+						} else {
+							System.out
+									.println("Current Conversations:\nPlease select a conversation (or -1 to quit)");
+							for (int i = 0; i < client.conversations.size(); i++) {
+								System.out.println("\t"
+												+ (i + 1)
+												+ ": "
+												+ client.conversations.get(i)
+														.getName());
+							}
+							System.out.print("Selection: ");
+							// Get selection
+							try {
+								inputSelection = Integer.parseInt(input
+										.nextLine());
+								shouldContinue = false;
+							} catch (NumberFormatException ex) { // Handle
+																	// invalid
+																	// input
+								System.out
+										.println("ERROR: Invalid selection. Please try again.");
+								shouldContinue = true;
+							}
+
+							// Handle out of bounds input
+							if (inputSelection > client.conversations.size()) {
+								System.out
+										.println("ERROR: Invalid selection. Please try again.");
+								shouldContinue = true;
+							}
+
+							// Handle quit
+							if (inputSelection == -1) {
+								shouldContinue = false;
+							}
+
+							// If valid selection, display conversation
+							if (inputSelection != -1) {
+								System.out.println(client.conversations
+										.get(inputSelection - 1));
+							}
+						}
+					} while (shouldContinue);
+				} else {
+					System.out
+							.println("ERROR: Not connected. Please connect to a server.");
+				}
+				inputSelection = 0;
+				break;
+			case 3:
+				// Send
+				if (client != null) {
+					System.out.println("Enter the name of the recipient.");
+					destination = input.nextLine();
+					System.out.println("Enter message to be sent.");
+					message = input.nextLine();
+					Message m = new Message(client.getUserName(), destination,
+							message);
+
+					client.getConnection().tellServer(m);
+
+				} else {
+					System.out
+							.println("ERROR: Not connected. Please connect to a server.");
+				}
+				inputSelection = 0;
+				break;
+			default:
+				if (client != null) {
+					// Close connection
+					client.getConnection().close();
+				}
+				break;
+			}
+		} while (inputSelection != 4);
+	}
+
+	/**
+	 * Displays the client menu
+	 */
+	public static void displayMenu() {
+		int i = 1;
+		System.out.println("What would you like to do?");
+		System.out.println("\t" + i++ + ": Connect");
+		System.out.println("\t" + i++ + ": View Messages");
+		System.out.println("\t" + i++ + ": Send Message");
+		System.out.println("\t" + i++ + ": Exit");
+		System.out.print("Selection: ");
+	}
+
+	public static void main(String[] args) {
+		Scanner input = new Scanner(System.in);
+
+		runMenu(input);
+	}
 }

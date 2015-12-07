@@ -3,7 +3,13 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.*;
+import java.util.LinkedList;
+import java.util.List;
 
+import client.ChatCommand;
+import client.Conversation;
+import server.Database;
+import server.DatabaseElement;
 import socketChat.Message;
 import socketChat.SharedLibrary;
 import socketChat.User;
@@ -23,7 +29,9 @@ public class ConnectionsManager {
     private ObjectInputStream[] sockIns; //for reading from a specified socket
     private ObjectOutputStream[] sockOuts; //for sending information to a specified socket
     private ClientListener[] cl;
-
+    public final Database db;
+    
+    
     //private fields
     private byte numConnections; //The number of current connections
 
@@ -38,14 +46,14 @@ public class ConnectionsManager {
         sockOuts = new ObjectOutputStream[MAX_CONNS+1];
         cl = new ClientListener[MAX_CONNS+1];
         numConnections = 0;
+        this.db = new Database();
     }
-
-    //getters
-    /**
+                           //getters
+                           /**
      * Gets the number of connected clients.
      * @return The number of connections.
      */
-    public byte getNumConnections() {
+                           public byte getNumConnections() {
         return numConnections;
     }
 
@@ -64,11 +72,11 @@ public class ConnectionsManager {
      * @return The response from the client when connection to port is established.
      */
     public User addConnection(int port) throws Exception {
-        if(numConnections < MAX_CONNS) {
+        if (numConnections < MAX_CONNS) {
             try {
                 //First, the server is listening on the default port.
                 ServerSocket ss = new ServerSocket(DEFAULT_PORT);
-                System.out.printf("Waiting for connection #%d on port %d\n",numConnections+1, port);
+                System.out.printf("Waiting for connection #%d on port %d\n", numConnections + 1, port);
                 socks[0] = ss.accept();
                 System.out.println("Accepted.");
                 sockOuts[0] = new ObjectOutputStream(socks[0].getOutputStream());
@@ -77,7 +85,7 @@ public class ConnectionsManager {
                 System.out.println("Reading password.");
                 String rsp = (String) sockIns[0].readObject(); //pw
                 //Check the password
-                if(rsp.equals(PW)) {
+                if (rsp.equals(PW)) {
                     //Send the new port number to the client
                     System.out.println("Password correct! Sending new port");
                     sockOuts[0].writeInt(port);
@@ -97,37 +105,39 @@ public class ConnectionsManager {
                 //Shift to the new port number and listen
                 System.out.println("Waiting for connection on " + port);
                 ss = new ServerSocket(port);
-                socks[numConnections+1] = ss.accept();
+                socks[numConnections + 1] = ss.accept();
                 System.out.println("Connection made!");
                 //Connected, no need for the ServerSocket now.
                 ss.close();
                 //Make the input/output streams.
-                sockOuts[numConnections+1] = new ObjectOutputStream(socks[numConnections+1].getOutputStream());
-                sockIns[numConnections+1] = new ObjectInputStream(socks[numConnections+1].getInputStream());
+                sockOuts[numConnections + 1] = new ObjectOutputStream(socks[numConnections + 1].getOutputStream());
+                sockIns[numConnections + 1] = new ObjectInputStream(socks[numConnections + 1].getInputStream());
                 //The client will now send the User object created on their side.
                 System.out.println("Reading user");
-                User ursp = (User) sockIns[numConnections+1].readObject();
+                User ursp = (User) sockIns[numConnections + 1].readObject();
                 //Set the User's unique ID and send it back to the client.
                 //NOTE: If we have time, make this more complicated.
-                ursp.setUniqueID(numConnections+1);
+                ursp.setUniqueID(numConnections + 1);
                 //System.out.println("Sending new user id");
                 //sockOuts[numConnections+1].writeInt(numConnections + 1);
                 System.out.println("Sent.  Waiting for ready message");
-                Message msg = (Message)waitForResponse(numConnections + 1);
+                ChatCommand msg = (ChatCommand) waitForResponse(numConnections + 1);
                 //Return the user to the server application
-                cl[numConnections+1] = new ClientListener(
-                        socks[numConnections+1],
-                        sockIns[numConnections+1],
-                        sockOuts[numConnections+1]
+                cl[numConnections + 1] = new ClientListener(
+                        socks[numConnections + 1],
+                        sockIns[numConnections + 1],
+                        sockOuts[numConnections + 1],
+                        db
                 );
-                Thread clientThread = new Thread(cl[numConnections+1]);
+                db.addUser(new DatabaseElement(ursp.getUserName()));
+                Thread clientThread = new Thread(cl[numConnections + 1]);
                 clientThread.start();
-                System.out.printf("Socket #%d successfully connected!\nMessage: %s\n",++numConnections,ursp);
+                System.out.printf("Socket #%d successfully connected.\nMessage: %s\n", ++numConnections, ursp);
                 return ursp;
-            } catch(Exception e) {
+            } catch (Exception e) {
                 System.out.println("An error occurred while opening socket.");
                 System.out.println("---Socket attempt information---");
-                System.out.printf("Socket #%d: host: %s\tport: %d\n",numConnections+1,InetAddress.getByName(null),port);
+                System.out.printf("Socket #%d: host: %s\tport: %d\n", numConnections + 1, InetAddress.getByName(null), port);
                 System.out.println(e.getMessage());
                 throw new Exception(e);
             }
@@ -338,4 +348,6 @@ public class ConnectionsManager {
             System.out.println(e.getMessage());
         }
     }
+    
+    
 }
